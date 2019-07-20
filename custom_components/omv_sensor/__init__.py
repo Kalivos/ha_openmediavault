@@ -1,0 +1,1 @@
+"""The openmediavault sensor integration."""

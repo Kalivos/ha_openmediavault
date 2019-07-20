@@ -1,0 +1,8 @@
+{
+  "domain": "openmediavault",
+  "name": "OMV Sensor",
+  "documentation": "https://github.com/Kalivos/ha_openmediavault/tree/master/custom_components/omv_sensor/",
+  "dependencies": [],
+  "codeowners": [],
+  "requirements": []
+}
