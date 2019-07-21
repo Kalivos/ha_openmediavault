@@ -11,31 +11,35 @@ Add the following to your `configuration.yaml` file:
 # Example configuration.yaml entry
 sensor:
   platform: openmediavault
-    host: http://openmediavault
-    username: admin
-    password: password
+  host: http://openmediavault
+  username: admin
+  password: password
 ```
 
 ### Configuration
 
-**name**
-(string)(Optional)
+**name** 
+    (string) (Optional)
 
-Name to give the OMV sensor.
+    Name to give the OMV sensor.
 
 Default value:
 openmediavault
 
 **host**
-    (string)(Required)
+    (string) (Required)
+    
     Hostname of the openmediavault server
 
 **username**
-(string)(Optional)
-Username to use for logging in to openmediavault.
+    (string) (Optional)
+
+    Username used for logging in to openmediavault.
 
 Default value:
 admin
 
 **password**
-(string)(Required)
+    (string) (Required)
+    
+    The password used to login to openmediavault

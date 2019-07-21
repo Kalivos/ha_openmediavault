@@ -14,6 +14,8 @@ from homeassistant.util import Throttle
 
 _LOGGER = logging.getLogger(__name__)
 
+_LOGGER.debug("openmediavault sensor is loading!")
+
 # The domain of your component. Should be equal to the name of your component.
 DOMAIN = "openmediavault"
 DEFAULT_USERNAME = 'admin'
@@ -81,23 +83,25 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
 
 
 def setup_platform(hass, config, add_entities, discovery_info=None):
-    """Set up the OMV sensor."""
+    """Set up the openmediavault sensor."""
+    _LOGGER.debug("openmediavault sensor is setting up!")
+
     name = config.get(CONF_NAME)
     username = config.get(CONF_USERNAME)
     password = config.get(CONF_PASSWORD)
     host = config.get(CONF_HOST)
     conditions = config.get(CONF_MONITORED_CONDITIONS)
 
-    api = OmvAPI(host, username, password, conditions)
+    api = OpenMediaVaultAPI(host, username, password, conditions)
 
     dev = []
     for condition in conditions:
-        dev.append(OmvSensor(api, name, condition))
+        dev.append(OpenMediaVaultSensor(api, name, condition))
 
     add_entities(dev, True)
 
 
-class OmvSensor(Entity):
+class OpenMediaVaultSensor(Entity):
     """Representation of a Sensor."""
 
     def __init__(self, api, name, condition):
@@ -146,7 +150,7 @@ class OmvSensor(Entity):
             self._state = None
 
 
-class OmvAPI:
+class OpenMediaVaultAPI:
     """Get the latest data and update the states."""
 
     def __init__(self, host, username, password, conditions):
