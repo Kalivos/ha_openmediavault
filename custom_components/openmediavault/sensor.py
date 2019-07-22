@@ -1,8 +1,9 @@
-"""Platform for sensor integration."""
+"""The openmediavault sensor integration."""
 import logging
 from datetime import timedelta
 
 import voluptuous as vol
+import json
 import requests
 
 import homeassistant.helpers.config_validation as cv
@@ -14,13 +15,11 @@ from homeassistant.util import Throttle
 
 _LOGGER = logging.getLogger(__name__)
 
-_LOGGER.debug("openmediavault sensor is loading!")
-
 # The domain of your component. Should be equal to the name of your component.
 DOMAIN = "openmediavault"
 DEFAULT_USERNAME = 'admin'
 ENDPOINT = '/rpc.php'
-MIN_TIME_BETWEEN_UPDATES = timedelta(seconds=5)
+MIN_TIME_BETWEEN_UPDATES = timedelta(seconds=30)
 
 ATTR_HOSTNAME = 'hostname'
 ATTR_VERSION = 'version'
@@ -82,23 +81,22 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
 })
 
 
-def setup_platform(hass, config, add_entities, discovery_info=None):
+async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
     """Set up the openmediavault sensor."""
-    _LOGGER.debug("openmediavault sensor is setting up!")
 
     name = config.get(CONF_NAME)
     username = config.get(CONF_USERNAME)
     password = config.get(CONF_PASSWORD)
     host = config.get(CONF_HOST)
     conditions = config.get(CONF_MONITORED_CONDITIONS)
-
-    api = OpenMediaVaultAPI(host, username, password, conditions)
+    session = requests.Session()
+    api = OpenMediaVaultAPI(host, session, username, password, conditions)
 
     dev = []
     for condition in conditions:
         dev.append(OpenMediaVaultSensor(api, name, condition))
 
-    add_entities(dev, True)
+    async_add_entities(dev, True)
 
 
 class OpenMediaVaultSensor(Entity):
@@ -111,7 +109,6 @@ class OpenMediaVaultSensor(Entity):
         self._var_name = condition
         self._var_omv_name = variable_info[0]
         self._var_icon = variable_info[1]
-
         self._api = api
         self._name = name
         self._state = None
@@ -122,14 +119,14 @@ class OpenMediaVaultSensor(Entity):
         return '{}_{}'.format(self._name, self._var_name)
 
     @property
+    def state_attributes(self):
+        """Return the attributes of the sensor."""
+        return {'friendly_name': self._var_omv_name}
+
+    @property
     def icon(self):
         """Icon to use in the frontend, if any."""
         return self._var_icon
-
-    @property
-    def unit_of_measurement(self):
-        """Return the unit the value is expressed in."""
-        return self._var_units
 
     @property
     def state(self):
@@ -141,7 +138,7 @@ class OpenMediaVaultSensor(Entity):
         """Return availability of OMV API."""
         return self._api.available
 
-    def update(self):
+    async def async_update(self):
         """Fetch new state data for the sensor."""
         self._api.update()
         if self.available:
@@ -153,9 +150,9 @@ class OpenMediaVaultSensor(Entity):
 class OpenMediaVaultAPI:
     """Get the latest data and update the states."""
 
-    def __init__(self, host, username, password, conditions):
+    def __init__(self, host, session, username, password, conditions):
         """Initialize the data object."""
-        resource = "{}{}".format(host, ENDPOINT)
+        self.resource = "{}{}".format(host, ENDPOINT)
 
         self.data = {
             ATTR_HOSTNAME: STATE_UNKNOWN,
@@ -169,55 +166,58 @@ class OpenMediaVaultAPI:
             ATTR_MEMORY_USAGE: STATE_UNKNOWN
         }
 
-        self._request = requests.Request('POST', resource).prepare()
+        self.username = username
+        self.password = password
         self.raw_data = None
-        self.sys_info_lookup = None
         self.conditions = conditions
         self.available = True
-        self.session = requests.Session()
-        self.login(username, password)
+        self.session = session
+        self.login()
 
-    def login(self, username, password):
+    def login(self):
         """Responsible for handling the login to openmediavault."""
 
-        data = {"service": "session", "method": "login", "params": {"username": username, "password": password}}
-
         try:
-            response = self.session.send(self._request, data=data, timeout=10)
+            response = self.session.post(self.resource, data=json.dumps({
+                'service': 'session',
+                'method': 'login',
+                'params': {
+                    'username': self.username,
+                    'password': self.password
+                }
+            }))
+
             self.raw_data = response.json()
 
-            # TODO: Need to check the response message to verify that the login was successful
-            _LOGGER.debug("Response from OMV login: " + self.raw_data)
+            _LOGGER.debug("Response from openmediavault login: %s", self.raw_data)
+            if self.raw_data['error'] is not None:
+                _LOGGER.error("Unable to login to openmediavault")
+                _LOGGER.error(self.raw_data['error']['message'])
 
-        except (ValueError, requests.exceptions.ConnectionError):
+        except requests.exceptions.ConnectionError as e:
             _LOGGER.error("Unable to login to openmediavault")
-
+            _LOGGER.error(e)
 
     def get_system_information(self):
         """Get the latest data from OMV server."""
 
-        # Response
-        # {"response": [{"name": "Hostname", "value": "openmediavault", "type": "string", "index": 0},
-        #               {"name": "Version", "value": "4.1.23-1 (Arrakis)", "type": "string", "index": 1},
-        #               {"name": "Processor", "value": "Intel(R) Core(TM) i7-4790 CPU @ 3.60GHz", "type": "string", "index": 2},
-        #               {"name": "Kernel", "value": "Linux 4.19.0-0.bpo.5-amd64", "type": "string", "index": 3},
-        #               {"name": "System time", "value": "Fri 19 Jul 2019 10:43:43 AM PDT", "type": "string", "index": 4},
-        #               {"name": "Uptime", "value": "0 days 0 hours 55 minutes 24 seconds", "type": "string", "index": 5},
-        #               {"name": "Load average", "value": "0.00, 0.05, 0.03", "type": "string", "index": 6},
-        #               {"name": "CPU usage", "value": {"text": "0%", "value": 0}, "type": "progress", "index": 7},
-        #               {"name": "Memory usage", "value": {"text": "3% of 7.48 GiB", "value": 3}, "type": "progress",
-        #                "index": 8}], "error": null}
-
-        data = {"service": "System", "method": "getInformation", "params": {}, "options": {"updatelastaccess": False}}
-
         try:
-            response = self.session.send(self._request, data=data, timeout=10)
+            response = self.session.post(self.resource, data=json.dumps({
+                'service': 'System',
+                'method': 'getInformation',
+                'params': {},
+                'options': {
+                    'updatelastaccess' : False
+                }
+            }))
+
             self.raw_data = response.json()
+            _LOGGER.debug("Response from OMV get_system_information():  %s", self.raw_data)
+
             self.format_system_information()
             self.available = True
 
-            _LOGGER.debug("Response from OMV get_system_information(): " + self.raw_data)
-        except (ValueError, requests.exceptions.ConnectionError):
+        except requests.exceptions.ConnectionError as e:
             _LOGGER.warning("Unable to fetch data from openmediavault")
             self.available = False
             self.raw_data = None
@@ -225,17 +225,16 @@ class OpenMediaVaultAPI:
     def format_system_information(self):
         """Format raw data into easily accessible dictionary"""
 
-        for attr_key in self.raw_data.response:
-            if isinstance(attr_key.value, list):
-                self.sys_info_lookup[attr_key.name] = attr_key.value.value
-            else:
-                self.sys_info_lookup[attr_key.name] = attr_key.value
+        if self.raw_data is not None:
+            for attr_key in self.raw_data['response']:
+                prop = attr_key['name'].lower().replace(" ", "_")
+                if isinstance(attr_key['value'], dict):
+                    self.data[prop] = attr_key['value']['value']
+                else:
+                    self.data[prop] = attr_key['value']
 
     @Throttle(MIN_TIME_BETWEEN_UPDATES)
     def update(self):
         """Fetch new state data for the sensor."""
 
         self.get_system_information()
-
-        for attr_key in self.conditions:
-            self.data[attr_key] = self.sys_info_lookup[attr_key[0]]

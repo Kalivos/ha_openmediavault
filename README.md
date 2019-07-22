@@ -3,7 +3,7 @@ A home assistant component that exposes openmediavault as a sensor.
 
 ### Installation
 
-Copy this folder into your config directory. You should end up with a file path similar to the following: `<config_dir>/custom_components/omv_sensor/`.
+Copy this folder into your config directory. You should end up with a file path similar to the following: `<config_dir>/custom_components/openmediavault/`.
 
 Add the following to your `configuration.yaml` file:
 
@@ -13,7 +13,17 @@ sensor:
   platform: openmediavault
   host: http://openmediavault
   username: admin
-  password: password
+  password: !secret openmediavault_password
+  monitored_conditions:
+    -  hostname
+    -  version
+    -  processor
+    -  kernel
+    -  system_time
+    -  uptime
+    -  load_average
+    -  cpu_usage
+    -  memory_usage
 ```
 
 ### Configuration
