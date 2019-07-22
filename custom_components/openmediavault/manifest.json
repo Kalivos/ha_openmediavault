@@ -1,0 +1,8 @@
+{
+  "domain": "openmediavault",
+  "name": "openmediavault",
+  "documentation": "https://github.com/Kalivos/ha_openmediavault/",
+  "dependencies": [],
+  "codeowners": ["@Kalivos"],
+  "requirements": []
+}
