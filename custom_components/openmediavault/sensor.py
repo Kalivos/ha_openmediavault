@@ -20,6 +20,8 @@ DOMAIN = "openmediavault"
 DEFAULT_USERNAME = 'admin'
 ENDPOINT = '/rpc.php'
 MIN_TIME_BETWEEN_UPDATES = timedelta(seconds=30)
+ERROR_CODE_NOT_AUTHENTICATED = 5000
+ERROR_CODE_SESSION_EXPIRED = 5001
 
 ATTR_HOSTNAME = 'hostname'
 ATTR_VERSION = 'version'
@@ -207,25 +209,30 @@ class OpenMediaVaultAPI:
                 'method': 'getInformation',
                 'params': {},
                 'options': {
-                    'updatelastaccess' : False
+                    'updatelastaccess': False
                 }
             }))
 
             self.raw_data = response.json()
             _LOGGER.debug("Response from OMV get_system_information():  %s", self.raw_data)
 
-            self.format_system_information()
-            self.available = True
+            error_check = self.error_check(self.raw_data)
 
-        except requests.exceptions.ConnectionError as e:
+        except requests.exceptions.ConnectionError:
             _LOGGER.warning("Unable to fetch data from openmediavault")
             self.available = False
             self.raw_data = None
 
+        if error_check['retry']:
+            self.get_system_information()
+        else:
+            self.format_system_information()
+            self.available = True
+
     def format_system_information(self):
         """Format raw data into easily accessible dictionary"""
 
-        if self.raw_data is not None:
+        if self.raw_data is not None and self.raw_data['response'] is not None:
             for attr_key in self.raw_data['response']:
                 prop = attr_key['name'].lower().replace(" ", "_")
                 if isinstance(attr_key['value'], dict):
@@ -238,3 +245,18 @@ class OpenMediaVaultAPI:
         """Fetch new state data for the sensor."""
 
         self.get_system_information()
+
+    def error_check(self, response):
+        """Parse the response and check for any known errors."""
+
+        retry = False
+
+        if response is not None and response['error'] is not None:
+            error_code = response['error']['code']
+
+            if error_code == ERROR_CODE_NOT_AUTHENTICATED or error_code == ERROR_CODE_SESSION_EXPIRED:
+                _LOGGER.debug("Session expired. Signing back in.")
+                self.login()
+                retry = True
+
+        return {'retry': retry}
