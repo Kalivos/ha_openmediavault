@@ -25,13 +25,13 @@ ERROR_CODE_SESSION_EXPIRED = 5001
 
 ATTR_HOSTNAME = 'hostname'
 ATTR_VERSION = 'version'
-ATTR_PROCESSOR = 'processor'
+ATTR_PROCESSOR = 'cpumodelname'
 ATTR_KERNEL = 'kernel'
-ATTR_SYSTEM_TIME = 'system_time'
+ATTR_SYSTEM_TIME = 'time'
 ATTR_UPTIME = 'uptime'
-ATTR_LOAD_AVERAGE = 'load_average'
-ATTR_CPU_USAGE = 'cpu_usage'
-ATTR_MEMORY_USAGE = 'memory_usage'
+ATTR_LOAD_AVERAGE = 'loadaverage'
+ATTR_CPU_USAGE = 'cpuusage'
+ATTR_MEMORY_USAGE = 'memused'
 
 MONITORED_CONDITIONS = {
     ATTR_HOSTNAME: [
