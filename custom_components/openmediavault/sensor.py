@@ -233,12 +233,14 @@ class OpenMediaVaultAPI:
         """Format raw data into easily accessible dictionary"""
 
         if self.raw_data is not None and self.raw_data['response'] is not None:
-            for attr_key in self.raw_data['response']:
-                prop = attr_key['name'].lower().replace(" ", "_")
-                if isinstance(attr_key['value'], dict):
-                    self.data[prop] = attr_key['value']['value']
+            response = self.raw_data['response']
+            for attr_key in response:
+                prop = attr_key.lower().replace(" ", "_")
+                if isinstance(response[attr_key], dict):
+                    # Unlikely that a dictionary will be returned, may not work as expected
+                    self.data[prop] = response[attr_key]['value']
                 else:
-                    self.data[prop] = attr_key['value']
+                    self.data[prop] = response[attr_key]
 
     @Throttle(MIN_TIME_BETWEEN_UPDATES)
     def update(self):
