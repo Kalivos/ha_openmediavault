@@ -25,13 +25,13 @@ ERROR_CODE_SESSION_EXPIRED = 5001
 
 ATTR_HOSTNAME = 'hostname'
 ATTR_VERSION = 'version'
-ATTR_PROCESSOR = 'processor'
+ATTR_PROCESSOR = 'cpumodelname'
 ATTR_KERNEL = 'kernel'
-ATTR_SYSTEM_TIME = 'system_time'
+ATTR_SYSTEM_TIME = 'time'
 ATTR_UPTIME = 'uptime'
-ATTR_LOAD_AVERAGE = 'load_average'
-ATTR_CPU_USAGE = 'cpu_usage'
-ATTR_MEMORY_USAGE = 'memory_usage'
+ATTR_LOAD_AVERAGE = 'loadaverage'
+ATTR_CPU_USAGE = 'cpuusage'
+ATTR_MEMORY_USAGE = 'memused'
 
 MONITORED_CONDITIONS = {
     ATTR_HOSTNAME: [
@@ -233,12 +233,14 @@ class OpenMediaVaultAPI:
         """Format raw data into easily accessible dictionary"""
 
         if self.raw_data is not None and self.raw_data['response'] is not None:
-            for attr_key in self.raw_data['response']:
-                prop = attr_key['name'].lower().replace(" ", "_")
-                if isinstance(attr_key['value'], dict):
-                    self.data[prop] = attr_key['value']['value']
+            response = self.raw_data['response']
+            for attr_key in response:
+                prop = attr_key.lower().replace(" ", "_")
+                if isinstance(response[attr_key], dict):
+                    # Unlikely that a dictionary will be returned, may not work as expected
+                    self.data[prop] = response[attr_key]['value']
                 else:
-                    self.data[prop] = attr_key['value']
+                    self.data[prop] = response[attr_key]
 
     @Throttle(MIN_TIME_BETWEEN_UPDATES)
     def update(self):
